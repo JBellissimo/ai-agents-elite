@@ -1,0 +1,10 @@
+{
+  "chief-of-staff": {
+    "responds_to_all": true,
+    "system_prompt": "chief_of_staff"
+  },
+  "ideas-inbox": {
+    "responds_to_all": true,
+    "system_prompt": "idea_developer"
+  }
+}
