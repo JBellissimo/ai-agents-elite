@@ -8,9 +8,12 @@ connected to Discord 24/7, waiting for your commands.
 COMMANDS:
     !scope  <company name>   Run a Bellissimo Scope diagnostic
     !xray   <company name>   Run a SustainCFO X-Ray financial diagnostic
+    !prep   <name>           Meeting prep brief (uses Obsidian notes if found)
+    !eval   <deal text>      Score + verdict on any deal or opportunity
     !help                    Show available commands
     !status                  Show how many jobs have run this session
     !threads                 Show status of all project threads
+    !nudge                   Trigger the daily morning brief on demand
 
 EXAMPLE:
     You type in Discord:   !scope Huntington Family Dental
@@ -63,9 +66,13 @@ load_dotenv()
 # CONFIG
 # =============================================================================
 
-DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-MODEL_CHAT    = "claude-haiku-4-5-20251001"   # Fast + cheap for bot chatter
-MODEL_AGENT   = "claude-sonnet-4-6"           # Full power for Scope/X-Ray
+DISCORD_BOT_TOKEN  = os.getenv("DISCORD_BOT_TOKEN")
+MODEL_CHAT         = "claude-haiku-4-5-20251001"   # Fast + cheap for bot chatter
+MODEL_AGENT        = "claude-sonnet-4-6"            # Full power for Scope/X-Ray
+
+# Path to Obsidian vault — used by !prep to pull existing notes on a company/person.
+# Set OBSIDIAN_VAULT_PATH in .env. Falls back gracefully if not set (VPS has no vault).
+OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", "")
 
 # Channel the daily nudge posts to. Must exactly match the Discord channel name.
 DAILY_NUDGE_CHANNEL = "chief-of-staff"
@@ -129,6 +136,47 @@ SYSTEM_PROMPTS = {
         "**Fits thread:** [which of the 8 PROJECT_THREADS this belongs to, or 'New thread needed']\n\n"
         "Be decisive. No hedging. JB needs a clear path, not a list of questions. "
         "If you need to make assumptions to be decisive, make them and note it briefly."
+    ),
+    "meeting_prep": (
+        "You are a meeting preparation specialist for JB, a fractional CFO/COO and AI consultant. "
+        "JB runs SustainCFO (fractional CFO) and is building Bellissimo AI Labs (AI consulting). "
+        "He is prep-ping for a business meeting and needs sharp, actionable intelligence.\n\n"
+        "Given a company name and any notes provided, return this structured brief:\n\n"
+        "**COMPANY SNAPSHOT**\n"
+        "[What they do, size, stage, key people, recent news]\n\n"
+        "**LIKELY PAIN POINTS**\n"
+        "[Top 3 operational or financial problems companies like this typically face]\n\n"
+        "**JB'S ANGLE**\n"
+        "[Which service fits best: SustainCFO (financial ops), Bellissimo Scope (AI diagnostic), "
+        "or Bellissimo OS (ongoing AI implementation). Be specific about WHY.]\n\n"
+        "**TALKING POINTS**\n"
+        "[3 things to lead with — value-first, not pitch-first]\n\n"
+        "**KEY QUESTIONS TO ASK**\n"
+        "[5 questions that surface pain, budget, and fit — in priority order]\n\n"
+        "**RECOMMENDED NEXT STEP**\n"
+        "[One concrete action to advance the relationship after this meeting]\n\n"
+        "Be specific and direct. If Obsidian notes are provided, incorporate them fully."
+    ),
+    "deal_eval": (
+        "You are a deal evaluation specialist for JB, a solo operator and AI consultant. "
+        "JB evaluates opportunities including: sales commission deals, consulting referrals, "
+        "partnerships, and new client engagements. He needs fast, honest deal assessments.\n\n"
+        "Given a deal description (email thread, conversation summary, or notes), return:\n\n"
+        "**DEAL SUMMARY**\n"
+        "[1-2 sentences: what this actually is]\n\n"
+        "**OPPORTUNITY SCORE: X/10**\n"
+        "[Revenue potential, strategic fit, probability of closing]\n\n"
+        "**FIT SCORE: X/10**\n"
+        "[Does this match JB's skills, time, and positioning? Is it SustainCFO, Bellissimo, or neither?]\n\n"
+        "**UPSIDE**\n"
+        "[Best case: what this could become]\n\n"
+        "**RISKS & RED FLAGS**\n"
+        "[What could go wrong, what's missing from the pitch, what's unclear]\n\n"
+        "**VERDICT: PURSUE / NEGOTIATE / PASS**\n"
+        "[Clear recommendation with one-sentence rationale]\n\n"
+        "**NEXT MOVE**\n"
+        "[Specific action if pursuing: what to ask, what to verify, what to propose]\n\n"
+        "Be blunt. JB's time is finite. A 'pass' saves more than a weak 'pursue'."
     ),
 }
 
@@ -247,6 +295,69 @@ def read_thread_statuses() -> str:
     return "\n".join(lines)
 
 
+def find_obsidian_note(query: str) -> str:
+    """
+    Search the Obsidian vault for a .md file matching the query (company or person name).
+    Returns file contents if found, empty string if vault not configured or no match.
+    Searches all .md filenames case-insensitively — skips hidden directories.
+    """
+    if not OBSIDIAN_VAULT_PATH or not os.path.isdir(OBSIDIAN_VAULT_PATH):
+        return ""
+
+    query_lower = query.lower()
+    query_words = query_lower.split()
+
+    for root, dirs, files in os.walk(OBSIDIAN_VAULT_PATH):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]   # skip .obsidian etc.
+        for filename in files:
+            if not filename.endswith(".md"):
+                continue
+            name_lower = filename[:-3].lower()
+            # Match if the full query appears in filename, or all words do
+            if query_lower in name_lower or all(w in name_lower for w in query_words):
+                filepath = os.path.join(root, filename)
+                try:
+                    with open(filepath, encoding="utf-8") as f:
+                        return f.read()
+                except Exception:
+                    return ""
+    return ""
+
+
+def generate_prep_brief(company: str, notes: str) -> str:
+    """
+    Generate a structured meeting prep brief.
+    Uses Haiku for speed — this is a pre-meeting tool, not a deep research session.
+    Includes Obsidian notes as context if found.
+    """
+    user_content = f"Company / Person: {company}\n\n"
+    if notes:
+        user_content += f"Obsidian Notes:\n{notes}\n\n"
+    user_content += "Generate the meeting prep brief."
+
+    response = anthropic_client.messages.create(
+        model=MODEL_CHAT,
+        max_tokens=900,
+        system=SYSTEM_PROMPTS["meeting_prep"],
+        messages=[{"role": "user", "content": user_content}],
+    )
+    return response.content[0].text
+
+
+def generate_deal_eval(description: str) -> str:
+    """
+    Evaluate a deal or opportunity.
+    Uses Sonnet (MODEL_AGENT) — deals require more nuanced reasoning than chat.
+    """
+    response = anthropic_client.messages.create(
+        model=MODEL_AGENT,
+        max_tokens=900,
+        system=SYSTEM_PROMPTS["deal_eval"],
+        messages=[{"role": "user", "content": description}],
+    )
+    return response.content[0].text
+
+
 def format_report_for_discord(report: str, company: str, agent_type: str) -> list[str]:
     """
     Discord has a 2000 character message limit.
@@ -307,7 +418,7 @@ async def on_ready():
     print(f"\n{'=' * 50}")
     print(f"Bellissimo Bot is online as: {bot.user}")
     print(f"Connected to {len(bot.guilds)} server(s)")
-    print(f"Commands: !scope, !xray, !help, !status, !threads, !nudge")
+    print(f"Commands: !scope, !xray, !prep, !eval, !threads, !nudge, !status, !help")
     print(f"{'=' * 50}\n")
     # Start the daily nudge background task
     bot.loop.create_task(daily_nudge_scheduler())
@@ -406,13 +517,16 @@ async def on_message(message: discord.Message):
             "─────────────────────────────────────────\n"
             "`!scope <company>`  — Full business intelligence diagnostic\n"
             "`!xray <company>`   — SustainCFO financial deep-dive\n"
+            "`!prep <name>`      — Meeting prep brief (pulls Obsidian notes)\n"
+            "`!eval <deal>`      — Score + verdict on any opportunity\n"
             "`!threads`          — Project thread status overview\n"
             "`!nudge`            — Trigger the daily morning brief now\n"
             "`!status`           — Session stats\n"
             "`!help`             — This message\n\n"
             "**Examples:**\n"
             "`!scope Huntington Family Dental`\n"
-            "`!xray Acme Manufacturing Co.`"
+            "`!prep Mat Sposta`\n"
+            "`!eval Commission deal — 15% on $50K contract, close by March`"
         )
         await message.reply(help_text)
 
@@ -450,6 +564,55 @@ async def on_message(message: discord.Message):
             await message.reply(f"**Daily Brief (on demand)**\n{'─' * 38}\n{nudge}")
         except Exception as e:
             await message.reply(f"Error generating brief: `{e}`")
+
+    # ==========================================================
+    # !prep <company or person name>
+    # Finds Obsidian notes on the target, generates a meeting prep brief.
+    # ==========================================================
+    elif content.lower().startswith("!prep "):
+        company = content[6:].strip()
+        if not company:
+            await message.reply(
+                "Usage: `!prep <company or person name>`\n"
+                "Example: `!prep Huntington Family Dental`"
+            )
+            return
+
+        await message.reply(f"Prepping for *{company}*...")
+        try:
+            notes = await asyncio.to_thread(find_obsidian_note, company)
+            brief  = await asyncio.to_thread(generate_prep_brief, company, notes)
+
+            note_tag = "\n\n*[Obsidian notes found and incorporated]*" if notes else ""
+            full = f"**Meeting Prep: {company}**\n{'─' * 40}\n{brief}{note_tag}"
+
+            for i in range(0, len(full), 1900):
+                await message.reply(full[i:i+1900])
+        except Exception as e:
+            await message.reply(f"Error generating prep for *{company}*: `{e}`")
+
+    # ==========================================================
+    # !eval <deal description or pasted text>
+    # Scores and verdicts an opportunity (email, summary, bullet points).
+    # ==========================================================
+    elif content.lower().startswith("!eval "):
+        description = content[6:].strip()
+        if not description:
+            await message.reply(
+                "Usage: `!eval <deal description>`\n"
+                "Paste an email, summary, or bullet points after the command."
+            )
+            return
+
+        await message.reply("Evaluating deal...")
+        try:
+            evaluation = await asyncio.to_thread(generate_deal_eval, description)
+            full = f"**Deal Evaluation**\n{'─' * 40}\n{evaluation}"
+
+            for i in range(0, len(full), 1900):
+                await message.reply(full[i:i+1900])
+        except Exception as e:
+            await message.reply(f"Error evaluating deal: `{e}`")
 
     # ==========================================================
     # Unknown command starting with !

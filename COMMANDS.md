@@ -6,6 +6,8 @@
 |---------|-------------|------|
 | `!scope <company>` | Full Bellissimo Scope diagnostic | ~45 sec |
 | `!xray <company>` | SustainCFO financial deep-dive | ~45 sec |
+| `!prep <name>` | Meeting prep brief — pulls Obsidian notes if found | ~5 sec |
+| `!eval <deal text>` | Score + verdict on any opportunity or deal | ~10 sec |
 | `!threads` | Project thread status board | instant |
 | `!nudge` | Trigger the daily morning brief on demand | ~3 sec |
 | `!status` | Bot uptime + runs this session | instant |
@@ -15,7 +17,8 @@
 ```
 !scope Huntington Family Dental
 !xray Acme Manufacturing Co.
-!scope Downtown Bradenton Law Group
+!prep Mat Sposta
+!eval Commission deal — 15% on a $50K contract, close by end of March, intro via warm referral
 ```
 
 ---
