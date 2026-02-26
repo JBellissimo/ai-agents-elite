@@ -59,6 +59,13 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 
 from agent import run_agent
+from apollo_tools import (
+    parse_prospect_query,
+    search_companies,
+    search_contacts,
+    format_company_results,
+    format_contact_results,
+)
 
 load_dotenv()
 
@@ -519,6 +526,7 @@ async def on_message(message: discord.Message):
             "`!xray <company>`   — SustainCFO financial deep-dive\n"
             "`!prep <name> [| notes]` — Meeting prep brief (Obsidian + inline context)\n"
             "`!eval <deal>`      — Score + verdict on any opportunity\n"
+            "`!prospect <query>` — Search Apollo for target companies or contacts\n"
             "`!threads`          — Project thread status overview\n"
             "`!nudge`            — Trigger the daily morning brief now\n"
             "`!status`           — Session stats\n"
@@ -526,7 +534,9 @@ async def on_message(message: discord.Message):
             "**Examples:**\n"
             "`!scope Huntington Family Dental`\n"
             "`!prep Mat Sposta`\n"
-            "`!eval Commission deal — 15% on $50K contract, close by March`"
+            "`!eval Commission deal — 15% on $50K contract, close by March`\n"
+            "`!prospect dental practices Long Island NY`\n"
+            "`!prospect CFO referral partners attorneys Huntington WV`"
         )
         await message.reply(help_text)
 
@@ -642,6 +652,58 @@ async def on_message(message: discord.Message):
                 await message.reply(full[i:i+1900])
         except Exception as e:
             await message.reply(f"Error evaluating deal: `{e}`")
+
+    # ==========================================================
+    # !prospect <natural language description>
+    # Searches Apollo.io for matching companies or contacts.
+    # Requires APOLLO_API_KEY in .env
+    # ==========================================================
+    elif content.lower().startswith("!prospect "):
+        query = content[10:].strip()
+        if not query:
+            await message.reply(
+                "Usage: `!prospect <description>`\n"
+                "Examples:\n"
+                "`!prospect dental practices Long Island NY`\n"
+                "`!prospect law firm partners Huntington WV under 20 employees`\n"
+                "`!prospect CFO referral partners attorneys NYC`"
+            )
+            return
+
+        await message.reply(f"Searching Apollo for: *{query}*...")
+        try:
+            def run_prospect_search():
+                params = parse_prospect_query(query, anthropic_client)
+                search_type = params.get("search_type", "companies")
+
+                if search_type == "contacts":
+                    results = search_contacts(
+                        titles=params.get("titles", []),
+                        locations=params.get("locations", []),
+                        industries=params.get("industries", []),
+                        company_headcount=params.get("employee_ranges", []),
+                        per_page=10,
+                    )
+                    return format_contact_results(results, query)
+                else:
+                    results = search_companies(
+                        keywords=params.get("keywords", ""),
+                        locations=params.get("locations", []),
+                        industries=params.get("industries", []),
+                        employee_ranges=params.get("employee_ranges", []),
+                        per_page=10,
+                    )
+                    return format_company_results(results, query)
+
+            output = await asyncio.to_thread(run_prospect_search)
+            for i in range(0, len(output), 1900):
+                await message.reply(output[i:i+1900])
+
+        except ValueError as e:
+            # Missing API key
+            await message.reply(f"Apollo not configured: `{e}`\nSet APOLLO_API_KEY in .env to enable prospecting.")
+        except Exception as e:
+            await message.reply(f"Prospect search error: `{e}`")
 
     # ==========================================================
     # Unknown command starting with !

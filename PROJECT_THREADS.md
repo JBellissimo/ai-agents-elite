@@ -51,7 +51,7 @@
 ---
 
 ## THREAD 3 — The Bellissimo Reveal (Core Product)
-**Status:** AGENT RUNNING / DISCORD BOT LIVE
+**Status:** AGENT RUNNING / DISCORD BOT ON VPS (ALWAYS-ON)
 **Priority:** HIGH — this is the revenue starter
 **Key Files:** [agent.py](agent.py), [tools.py](tools.py), [discord_bot.py](discord_bot.py), [agent_server.py](agent_server.py)
 
@@ -73,7 +73,13 @@
 - [ ] Run the agent against a real prospect (not demo data)
 - [ ] Build async CEO interview intake (web form or voice)
 - [ ] Design the 2-page Reveal output template
-- [ ] Deploy discord_bot.py to Hetzner VPS for always-on operation
+- [x] Deploy discord_bot.py to Hetzner VPS for always-on operation
+- [x] !prep command with Obsidian vault + inline context (| syntax)
+- [x] !eval command — deal scoring + verdict
+- [ ] Enhance daily nudge to read PROJECT_THREADS.md and surface specific per-thread asks
+- [ ] Add 4 new tools to tools.py for Reveal mode
+- [ ] Build Reveal intake form (web form → feeds agent)
+- [ ] Gmail integration for !prep (pulls recent email threads with contact)
 
 **Blocker:** New tools needed before running a real Reveal.
 
@@ -163,11 +169,46 @@
 - [ ] Identify which SustainCFO workflows can be AI-assisted immediately
 - [ ] Use SustainCFO clients as beta testers for the Reveal product
 - [ ] Target: reduce SustainCFO time by 50% within 6 months
+- [ ] Apollo.io + Go High Level outreach integration (see Thread 9)
+
+---
+
+## THREAD 9 — Conversation Intelligence & Outreach Automation
+**Status:** PLANNING
+**Priority:** HIGH — unlocks visibility + sales motion
+**Key Files:** [conversation_extractor.py](conversation_extractor.py) (to be created)
+
+**What this is:**
+Two connected problems:
+1. **Conversation Intelligence** — extract action items / decisions from all past Claude Code and ChatGPT sessions into one place
+2. **Outreach Automation** — connect Apollo.io (prospect targeting) + Go High Level (pipeline/email sequences) so Claude Code can help find and contact companies
+
+**What's done:**
+- Thread defined, approach agreed
+
+**Next action:**
+- [ ] Build conversation_extractor.py — reads local Claude Code JSONL transcripts, extracts open actions + decisions, posts to Discord or PROJECT_THREADS.md
+- [ ] Export ChatGPT conversation history (Settings → Export) and feed into extractor
+- [ ] Set up Apollo.io API key (need account) — build !prospect command
+- [ ] Set up Go High Level API key (need account) — build contact/pipeline push
+- [ ] Decide: Airtable or GHL as primary CRM for Bellissimo pipeline
+
+**Blocker:** Need Apollo.io account + GHL account (or Airtable) confirmed before building integrations.
 
 ---
 
 ## SESSION NOTES
 *Append notes here at end of each session. Most recent at top.*
+
+### 2026-02-26
+- Deployed discord_bot.py to Hetzner VPS (5.161.215.26) — bot is always-on
+- Built !prep with Obsidian vault search + inline context via | separator
+- Built !eval — deal scoring agent (score + verdict + next move)
+- Created USER_GUIDE.md — daily cadence, commands, keyboard shortcuts, VPS reference
+- Resolved double-reply issue (killed local bot process, VPS only)
+- Added Thread 9: Conversation Intelligence & Outreach Automation
+- Decisions: education vs. business action (Thread 2/7) to be evaluated per session; ChatGPT for commission eval for now; Mat intro on hold; Airtable preferred CRM over GHL for now; Apollo+GHL for outreach when accounts confirmed
+- Next session priorities: Thread 9 (conversation_extractor.py), Thread 3 (daily nudge enhancement), Apollo/GHL API research
 
 ### 2026-02-25
 - Named company: Bellissimo AI Labs
