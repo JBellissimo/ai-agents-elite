@@ -517,7 +517,7 @@ async def on_message(message: discord.Message):
             "─────────────────────────────────────────\n"
             "`!scope <company>`  — Full business intelligence diagnostic\n"
             "`!xray <company>`   — SustainCFO financial deep-dive\n"
-            "`!prep <name>`      — Meeting prep brief (pulls Obsidian notes)\n"
+            "`!prep <name> [| notes]` — Meeting prep brief (Obsidian + inline context)\n"
             "`!eval <deal>`      — Score + verdict on any opportunity\n"
             "`!threads`          — Project thread status overview\n"
             "`!nudge`            — Trigger the daily morning brief now\n"
@@ -566,25 +566,54 @@ async def on_message(message: discord.Message):
             await message.reply(f"Error generating brief: `{e}`")
 
     # ==========================================================
-    # !prep <company or person name>
+    # !prep <name> [| <inline context>]
     # Finds Obsidian notes on the target, generates a meeting prep brief.
+    # Inline context (after |) lets you add texts, updates, or any notes.
+    # Example: !prep Mat Sposta | Recent texts: wants intro to Goldin team
     # ==========================================================
     elif content.lower().startswith("!prep "):
-        company = content[6:].strip()
-        if not company:
+        raw = content[6:].strip()
+        if not raw:
             await message.reply(
-                "Usage: `!prep <company or person name>`\n"
-                "Example: `!prep Huntington Family Dental`"
+                "Usage: `!prep <name>` or `!prep <name> | <notes>`\n"
+                "Example: `!prep Mat Sposta | Recent texts: he wants to intro me to Goldin`"
             )
             return
 
+        # Split on | to separate name from inline context
+        if "|" in raw:
+            company, inline_notes = raw.split("|", 1)
+            company = company.strip()
+            inline_notes = inline_notes.strip()
+        else:
+            company = raw
+            inline_notes = ""
+
         await message.reply(f"Prepping for *{company}*...")
         try:
-            notes = await asyncio.to_thread(find_obsidian_note, company)
-            brief  = await asyncio.to_thread(generate_prep_brief, company, notes)
+            vault_notes = await asyncio.to_thread(find_obsidian_note, company)
 
-            note_tag = "\n\n*[Obsidian notes found and incorporated]*" if notes else ""
-            full = f"**Meeting Prep: {company}**\n{'─' * 40}\n{brief}{note_tag}"
+            # Combine vault notes + inline context
+            combined_notes = ""
+            if vault_notes:
+                combined_notes += f"[From Obsidian vault]\n{vault_notes}"
+            if inline_notes:
+                if combined_notes:
+                    combined_notes += f"\n\n[Additional context]\n{inline_notes}"
+                else:
+                    combined_notes = inline_notes
+
+            brief = await asyncio.to_thread(generate_prep_brief, company, combined_notes)
+
+            source_tag = ""
+            if vault_notes and inline_notes:
+                source_tag = "\n\n*[Obsidian notes + inline context incorporated]*"
+            elif vault_notes:
+                source_tag = "\n\n*[Obsidian notes incorporated]*"
+            elif inline_notes:
+                source_tag = "\n\n*[Inline context incorporated]*"
+
+            full = f"**Meeting Prep: {company}**\n{'─' * 40}\n{brief}{source_tag}"
 
             for i in range(0, len(full), 1900):
                 await message.reply(full[i:i+1900])
