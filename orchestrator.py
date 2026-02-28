@@ -29,8 +29,9 @@ Deploy:
 import os
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, time as dt_time
 from pathlib import Path
+import pytz
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import (
@@ -41,6 +42,7 @@ from telegram.ext import (
     ContextTypes,
 )
 import db
+import brief_agent
 
 load_dotenv()
 
@@ -273,11 +275,48 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  !add [task]     -- capture a task\n"
         "  !add !! [task]  -- urgent task\n"
         "  !add [Area] ... -- task with area\n"
-        "  !done [title]   -- mark task done\n"
-        "  !brief          -- urgent tasks only\n\n"
-        "C-Suite (Phase 2):\n"
+        "  !done [title]   -- mark task done\n\n"
+        "Briefings (Phase 2 -- live):\n"
+        "  /brief          -- AI daily brief (on demand)\n"
+        "  !brief          -- AI daily brief (on demand)\n"
+        "  [auto at 5am EST daily]\n\n"
+        "C-Suite (coming):\n"
         "  /ceo  /coo  /cmo  /cgo"
     )
+
+
+# ---------------------------------------------------------------------------
+# BRIEF COMMAND + SCHEDULED JOB
+# ---------------------------------------------------------------------------
+
+async def cmd_brief(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /brief -- on-demand AI daily brief.
+    Reads all tasks from Supabase, calls Claude, returns prioritized brief.
+    """
+    if not await is_authorized(update):
+        return
+
+    await update.message.reply_text("Generating brief...")
+    tasks = await asyncio.to_thread(db.get_tasks)
+    brief_text = await asyncio.to_thread(brief_agent.generate_brief, tasks)
+    await update.message.reply_text(brief_text)
+    logger.info("Brief generated and sent on demand.")
+
+
+async def scheduled_daily_brief(context: ContextTypes.DEFAULT_TYPE):
+    """
+    Runs at 5am EST daily via JobQueue.
+    Sends the AI brief to JB without any command trigger.
+    """
+    logger.info("Running scheduled daily brief...")
+    try:
+        tasks = await asyncio.to_thread(db.get_tasks)
+        brief_text = await asyncio.to_thread(brief_agent.generate_brief, tasks)
+        await context.bot.send_message(chat_id=TELEGRAM_USER_ID, text=brief_text)
+        logger.info("Scheduled daily brief sent.")
+    except Exception as e:
+        logger.error(f"Daily brief failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -409,14 +448,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"No active task matching \"{search}\". Check !tasks for exact titles."
             )
 
-    # --- !brief ---
+    # --- !brief — AI-generated daily brief ---
     elif msg.lower().startswith("!brief"):
-        tasks = await asyncio.to_thread(db.get_brief)
-        if tasks:
-            reply = f"Urgent tasks ({len(tasks)}):\n\n{_format_tasks(tasks)}"
-        else:
-            reply = "No urgent tasks. Run !tasks to see everything."
-        await update.message.reply_text(reply)
+        await update.message.reply_text("Generating brief...")
+        tasks = await asyncio.to_thread(db.get_tasks)
+        brief_text = await asyncio.to_thread(brief_agent.generate_brief, tasks)
+        await update.message.reply_text(brief_text)
 
     # --- freeform (Phase 2: Chief of Staff) ---
     else:
@@ -450,13 +487,23 @@ def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     # Register handlers -- order matters
-    # Commands first (matched by /command prefix)
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("brief", cmd_brief))
 
-    # Catch-all text handler (must be last -- matches everything that isn't a command)
+    # Catch-all text handler (must be last)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Schedule 5am EST daily brief
+    if TELEGRAM_USER_ID and app.job_queue:
+        eastern = pytz.timezone("America/New_York")
+        app.job_queue.run_daily(
+            scheduled_daily_brief,
+            time=dt_time(5, 0, 0, tzinfo=eastern),
+            name="daily_brief",
+        )
+        logger.info("Daily brief scheduled for 5am EST.")
 
     logger.info("Orchestrator running. Listening for Telegram messages...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
