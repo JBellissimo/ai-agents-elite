@@ -11,13 +11,34 @@ WHY Claude here (not just a sorted list):
     138 tasks. JB needs to know which 3 matter TODAY and WHY.
     The Theory of Constraints says one bottleneck limits everything.
     Claude finds it. A sorted list cannot.
+
+CONTEXT LOADING:
+    Reads STRATEGIC_NORTH_STAR.md and PROJECT_THREADS.md at runtime so the
+    brief is grounded in actual strategy, not just the task list.
+    Both files live next to this script on VPS (/opt/bellissimo/).
 """
 
 import os
 import anthropic
 from datetime import date
+from pathlib import Path
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+
+# Resolve paths relative to this file so it works locally and on VPS
+_HERE = Path(__file__).parent
+
+
+def _load_context_file(filename: str, max_chars: int = 3000) -> str:
+    """Load a markdown context file, truncating if needed to save tokens."""
+    path = _HERE / filename
+    try:
+        text = path.read_text(encoding="utf-8")
+        if len(text) > max_chars:
+            text = text[:max_chars] + "\n...[truncated]"
+        return text
+    except FileNotFoundError:
+        return f"[{filename} not found]"
 
 
 def _format_tasks_for_prompt(tasks: list[dict]) -> str:
@@ -44,24 +65,29 @@ def generate_brief(tasks: list[dict]) -> str:
     Runs synchronously -- wrap in asyncio.to_thread() from async callers.
     """
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    today = date.today().strftime("%A, %B %-d")  # e.g. "Saturday, February 28"
+    today = date.today().strftime("%A, %B %d").replace(" 0", " ")  # "Saturday, February 28" (cross-platform)
     task_text = _format_tasks_for_prompt(tasks)
+
+    # Load live strategy context so the brief is grounded in what's actually true
+    north_star = _load_context_file("STRATEGIC_NORTH_STAR.md", max_chars=3000)
+    threads = _load_context_file("PROJECT_THREADS.md", max_chars=2500)
 
     system_prompt = f"""You are Bellissimo OS — JB's personal operating system and chief of staff.
 
-CONTEXT:
-- JB is building a $20M AI consulting firm (Bellissimo AI Labs) as a solo operator
-- Sister business: SustainCFO (fractional CFO practice, ~$1M revenue)
-- North star metric: Revenue per JB hour
-- JB reads this brief on his iPhone at 5am — it must be actionable immediately
+=== STRATEGIC CONTEXT (read this first) ===
+{north_star}
 
-YOUR JOB:
-Generate a concise daily brief that tells JB exactly what to focus on today.
+=== ACTIVE WORK THREADS ===
+{threads}
+
+=== YOUR MISSION ===
+JB reads this brief on his iPhone at 5am. It must be immediately actionable.
+North star metric: Revenue per JB hour. Everything else is noise.
 
 REASONING FRAMEWORK (apply in order):
 1. Theory of Constraints: What ONE bottleneck is limiting the $20M goal right now?
-2. Inversion: What would guarantee today is wasted?
-3. Revenue filter: Of all tasks, which directly creates or enables revenue?
+2. Revenue filter: Of all tasks, which directly creates or protects revenue today?
+3. Inversion: What would guarantee today is wasted?
 
 OUTPUT FORMAT (strict):
 Today: {today}
