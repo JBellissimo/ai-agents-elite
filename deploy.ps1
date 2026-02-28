@@ -10,6 +10,6 @@ if ($LASTEXITCODE -ne 0) { Write-Host "(nothing new to commit)" }
 git push
 
 Write-Host "Updating VPS and restarting bot..."
-ssh root@5.161.215.26 "cd /opt/bellissimo && git pull && pkill -f discord_bot.py; sleep 2; screen -dm -S bellissimo /opt/venv/bin/python3 discord_bot.py && echo 'Bot restarted'"
+ssh root@5.161.215.26 "cd /opt/bellissimo && git pull && pkill -f orchestrator.py 2>/dev/null; pkill -f discord_bot.py 2>/dev/null; screen -wipe 2>/dev/null; sleep 2; screen -dm -S bellissimo /opt/venv/bin/python3 /opt/bellissimo/orchestrator.py && echo 'Orchestrator restarted'"
 
 Write-Host "Done. Bot is live on VPS."

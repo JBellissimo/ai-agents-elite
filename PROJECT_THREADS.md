@@ -15,19 +15,19 @@
 
 ## THREAD 1 — Legal & Business Formation
 **Status:** NOT STARTED
-**Priority:** HIGH — nothing else is official until this is done
+**Priority:** LOW — deprioritized until revenue is flowing
 **Key File:** [BUSINESS_SETUP.md](BUSINESS_SETUP.md)
 
 **What's done:**
 - Full agent-runnable checklist created (12 tasks, 5 tracks)
 
 **Next action:**
-- [ ] Register Wyoming LLC: Bellissimo AI Labs LLC
+- [ ] File a simple LLC (state TBD — Wyoming not required)
 - [ ] Get EIN from IRS
 - [ ] Open Mercury Bank account
 - [ ] Secure domain (bellissimo.ai or bellissimoailabs.com)
 
-**Blocker:** Requires your time + payment method. ~2 hours to complete all of Track 1-2.
+**Blocker:** Not urgent. Start after first paying client or when legal protection becomes necessary.
 
 ---
 
@@ -86,22 +86,31 @@
 ---
 
 ## THREAD 4 — Sales Package & Go-to-Market
-**Status:** FIRST DRAFT DONE
-**Priority:** MEDIUM — need legal entity + brand first
-**Key File:** [SALES_PACKAGE.md](SALES_PACKAGE.md)
+**Status:** SUSTAINCFO SALES SYSTEM IN PROGRESS
+**Priority:** HIGH — direct path to revenue
+**Key Files:** [SALES_PACKAGE.md](SALES_PACKAGE.md), Google Form (Financial Clarity Assessment)
 
 **What's done:**
-- 5 routing questions defined
-- 4 live demos scripted
-- Product tiers priced (Reveal → OS → Flywheel)
-- Target verticals mapped (white collar + guerrilla targets)
-- 5-slide deck outline written
+- SustainCFO ICP defined ($3-20M revenue, no FT CFO, service businesses + venture-backed)
+- 10-question Financial Clarity Assessment built in Google Form (sent to Josh for review)
+- Full sales process map defined (7 stages: Identify → Outreach → Diagnostic → Deliver → Discovery → Propose → Close)
+- Pricing tiers confirmed: $2,500/mo (productized) / $5,000/mo (growth) / $7,500+/mo (scale)
+- Proposal reviewed — feedback given on personalization + differentiation gaps
+- "SustainCFO for a Week" identified as $10K value entry tactic → converts to retainer
+- 3 GHL pipelines reviewed: 107 marketing / 37 affiliate / 11 active sales
+- Active sales pipeline prioritized: Ali Laith (dental, HOT), Commercial Filter, Rentwell
+- ICP + diagnostic document drafted and sent to Josh for feedback
+- Product renamed: "Scope" (not Reveal) for SustainCFO product
 
-**Next action:**
-- [ ] Build the actual slide deck (PowerPoint or Pitch.com)
-- [ ] Practice the 5 routing questions out loud
-- [ ] Identify 10 warm prospects (SustainCFO network first)
-- [ ] Run first "Reveal" conversation with a real prospect
+**Next action (pending Josh conversation tonight):**
+- [ ] Josh feedback on Google Form questions
+- [ ] Confirm "CFO for a Week" pricing/positioning ($10K value, free entry offer)
+- [ ] Decide GHL outreach strategy for 107-contact marketing list
+- [ ] Get Josh's discovery call questions (may update diagnostic)
+- [ ] Confirm commission structure for JB on direct closes
+- [ ] Draft direct prospect email + affiliate activation email
+- [ ] Follow up on Ali Laith scope review call (7 days stale, $90K opportunity)
+- [ ] Re-engage or archive cold pipeline (US Boston 150 days, Etchison 205, Wastebox 251, OKSA 323)
 
 ---
 
@@ -200,15 +209,34 @@ Two connected problems:
 ## SESSION NOTES
 *Append notes here at end of each session. Most recent at top.*
 
+### 2026-02-26 (Session 2)
+- Built SustainCFO ICP (revenue $3-20M, no FT CFO, sector-agnostic, local-first outreach)
+- Designed 10-question Financial Clarity Assessment → built in Google Form → sent to Josh
+- Defined 7-stage SustainCFO sales process map (Identify → Outreach → Diagnostic → Deliver → Discovery → Propose → Close)
+- Pricing confirmed: $2,500 productized / $5K growth / $7,500+ scale
+- Reviewed 2 proposals (Luminus $7,395/mo, Lumina Solar $4,895/mo) — feedback: personalize page 1, sharpen "Our Approach", add differentiation
+- Reviewed 3 GHL pipelines: 107 marketing / 37 affiliate / 11 active sales
+- Identified hottest active opportunity: Ali Laith dental rollup ($90K, 7 days stale)
+- "SustainCFO for a Week" PDF reviewed — positioned as $10K value entry tactic → retainer conversion
+- Thread 1 updated: LLC not Wyoming, LOW priority
+- Product naming: "Scope" confirmed (not Reveal) for SustainCFO
+- PENDING: Josh conversation tonight on form feedback, CFO-for-a-Week pricing, commission structure, GHL outreach strategy
+
 ### 2026-02-26
 - Deployed discord_bot.py to Hetzner VPS (5.161.215.26) — bot is always-on
 - Built !prep with Obsidian vault search + inline context via | separator
 - Built !eval — deal scoring agent (score + verdict + next move)
+- Built !prospect — Apollo.io search (BLOCKED: Cloudflare 403 on VPS IPs, needs alternate approach)
+- Built conversation_extractor.py — reads local Claude Code sessions, extracts action items
+- Built apollo_tools.py — Apollo API integration (local use only until proxy/alt solution)
+- Built deploy.ps1 — one-command deploy from VS Code (replaces manual SSH workflow)
+- Set up passwordless SSH (VPS key auth)
+- Set up GitHub SSH key (no more password prompts on git push)
 - Created USER_GUIDE.md — daily cadence, commands, keyboard shortcuts, VPS reference
 - Resolved double-reply issue (killed local bot process, VPS only)
 - Added Thread 9: Conversation Intelligence & Outreach Automation
-- Decisions: education vs. business action (Thread 2/7) to be evaluated per session; ChatGPT for commission eval for now; Mat intro on hold; Airtable preferred CRM over GHL for now; Apollo+GHL for outreach when accounts confirmed
-- Next session priorities: Thread 9 (conversation_extractor.py), Thread 3 (daily nudge enhancement), Apollo/GHL API research
+- STRATEGIC DECISION: Infrastructure phase is done. Next session = revenue focus only.
+- Next session priorities: (1) Tally intake form + webhook handler, (2) run real Reveal for 1 warm prospect, (3) Thread 1 legal filing
 
 ### 2026-02-25
 - Named company: Bellissimo AI Labs
