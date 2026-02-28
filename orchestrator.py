@@ -27,6 +27,7 @@ Deploy:
 """
 
 import os
+import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -39,6 +40,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+import db
 
 load_dotenv()
 
@@ -243,9 +245,9 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Orchestrator Status\n"
         "-------------------\n"
         f"Online:    Yes\n"
-        f"Phase:     0 (Foundation)\n"
+        f"Phase:     1 (Tasks live)\n"
         f"Time:      {now}\n"
-        f"Supabase:  Not connected (Phase 1)\n"
+        f"Supabase:  Connected\n"
         f"Cron:      Not scheduled (Phase 2)\n"
         f"Agents:    None spawned yet"
     )
@@ -262,49 +264,150 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Bellissimo OS -- Commands\n"
         "-------------------------\n"
-        "Phase 0 (now):\n"
+        "System:\n"
         "  /start    -- confirm online\n"
         "  /status   -- system health\n"
         "  /help     -- this message\n\n"
-        "Phase 1 (coming):\n"
-        "  !tasks [area]\n"
-        "  !add [task]\n"
-        "  !done [task]\n"
-        "  !brief\n"
-        "  !scope [company]\n"
-        "  !prep [name]\n\n"
+        "Tasks (Phase 1 -- live):\n"
+        "  !tasks [area]   -- list active tasks\n"
+        "  !add [task]     -- capture a task\n"
+        "  !add !! [task]  -- urgent task\n"
+        "  !add [Area] ... -- task with area\n"
+        "  !done [title]   -- mark task done\n"
+        "  !brief          -- urgent tasks only\n\n"
         "C-Suite (Phase 2):\n"
         "  /ceo  /coo  /cmo  /cgo"
     )
 
 
 # ---------------------------------------------------------------------------
+# TASK COMMAND HELPERS
+# ---------------------------------------------------------------------------
+
+def _format_tasks(tasks: list[dict]) -> str:
+    """
+    Formats a list of task rows into a readable Telegram message.
+    Groups by area. Marks urgent tasks with !!
+    """
+    if not tasks:
+        return "No tasks found."
+
+    # Group by area
+    by_area: dict[str, list] = {}
+    for t in tasks:
+        area = t.get("area") or "General"
+        by_area.setdefault(area, []).append(t)
+
+    lines = []
+    for area, area_tasks in sorted(by_area.items()):
+        lines.append(f"\n{area}:")
+        for t in area_tasks:
+            prefix = "!!" if t.get("priority") == "urgent" else "  "
+            lines.append(f"{prefix} {t['title']}")
+
+    return "\n".join(lines).strip()
+
+
+def _parse_add(text: str) -> tuple[str, str | None, str]:
+    """
+    Parses !add command text into (title, area, priority).
+
+    Formats supported:
+        !add Call Marcus
+        !add [SustainCFO] Call Marcus
+        !add !! Call Marcus              (urgent, no area)
+        !add !! [SustainCFO] Call Marcus (urgent + area)
+    """
+    body = text[len("!add"):].strip()
+    priority = "normal"
+
+    if body.startswith("!!"):
+        priority = "urgent"
+        body = body[2:].strip()
+
+    area = None
+    if body.startswith("["):
+        end = body.find("]")
+        if end != -1:
+            area = body[1:end].strip()
+            body = body[end + 1:].strip()
+
+    return body, area, priority
+
+
+# ---------------------------------------------------------------------------
 # CATCH-ALL MESSAGE HANDLER
-# Phase 0: log and acknowledge everything.
-# Phase 1: route to Task Agent or Chief of Staff based on content.
+# Routes !tasks, !add, !done, !brief to Supabase.
+# Freeform text acknowledged (Phase 2: route to Chief of Staff agent).
 # ---------------------------------------------------------------------------
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handles all non-command text messages.
-
-    Phase 0: logs the message + acknowledges receipt.
-    Phase 1: will route to Task Agent or Chief of Staff.
-
-    WHY this matters: in Phase 1, freeform messages like
-    "remember to call Marcus tomorrow" get parsed by Task Agent
-    and turned into structured tasks in Supabase automatically.
-    """
     if not await is_authorized(update):
         return
 
-    user_msg = update.message.text
-    logger.info(f"Message received: {user_msg}")
+    msg = update.message.text.strip()
+    logger.info(f"Message received: {msg}")
 
-    await update.message.reply_text(
-        f"Received: {user_msg}\n\n"
-        f"[Phase 1: this will route to Task Agent or Chief of Staff]"
-    )
+    # --- !tasks [area] ---
+    if msg.lower().startswith("!tasks"):
+        area = msg[6:].strip() or None
+        tasks = await asyncio.to_thread(db.get_tasks, area)
+        label = f" ({area})" if area else ""
+        reply = f"Active tasks{label}:\n\n{_format_tasks(tasks)}"
+        await update.message.reply_text(reply)
+
+    # --- !add [!!] [[area]] title ---
+    elif msg.lower().startswith("!add"):
+        if len(msg) <= 5:
+            await update.message.reply_text(
+                "Usage: !add [!!] [[Area]] Task title\n"
+                "Examples:\n"
+                "  !add Call Marcus\n"
+                "  !add [SustainCFO] Review Q1 numbers\n"
+                "  !add !! [Bellissimo] Send proposal to Josh"
+            )
+            return
+        title, area, priority = _parse_add(msg)
+        if not title:
+            await update.message.reply_text("No task title found. Try: !add Call Marcus")
+            return
+        task = await asyncio.to_thread(db.add_task, title, area, priority)
+        flag = " [URGENT]" if priority == "urgent" else ""
+        area_str = f" ({area})" if area else ""
+        await update.message.reply_text(f"Added{flag}{area_str}: {title}")
+        logger.info(f"Task added: {task}")
+
+    # --- !done [partial title] ---
+    elif msg.lower().startswith("!done"):
+        search = msg[5:].strip()
+        if not search:
+            await update.message.reply_text(
+                "Usage: !done [partial task title]\nExample: !done Call Marcus"
+            )
+            return
+        task = await asyncio.to_thread(db.mark_done_by_match, search)
+        if task:
+            await update.message.reply_text(f"Done: {task['title']}")
+        else:
+            await update.message.reply_text(
+                f"No active task matching \"{search}\". Check !tasks for exact titles."
+            )
+
+    # --- !brief ---
+    elif msg.lower().startswith("!brief"):
+        tasks = await asyncio.to_thread(db.get_brief)
+        if tasks:
+            reply = f"Urgent tasks ({len(tasks)}):\n\n{_format_tasks(tasks)}"
+        else:
+            reply = "No urgent tasks. Run !tasks to see everything."
+        await update.message.reply_text(reply)
+
+    # --- freeform (Phase 2: Chief of Staff) ---
+    else:
+        await update.message.reply_text(
+            f"Received: {msg}\n\n"
+            "[Phase 2: freeform messages will route to Chief of Staff]"
+        )
 
 
 # ---------------------------------------------------------------------------
