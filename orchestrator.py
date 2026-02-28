@@ -286,13 +286,12 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def _format_tasks(tasks: list[dict]) -> str:
     """
-    Formats a list of task rows into a readable Telegram message.
-    Groups by area. Marks urgent tasks with !!
+    Formats tasks grouped by area with next_action shown.
+    Urgent tasks marked with !!
     """
     if not tasks:
         return "No tasks found."
 
-    # Group by area
     by_area: dict[str, list] = {}
     for t in tasks:
         area = t.get("area") or "General"
@@ -303,7 +302,10 @@ def _format_tasks(tasks: list[dict]) -> str:
         lines.append(f"\n{area}:")
         for t in area_tasks:
             prefix = "!!" if t.get("priority") == "urgent" else "  "
-            lines.append(f"{prefix} {t['title']}")
+            line = f"{prefix} {t['title']}"
+            if t.get("next_action"):
+                line += f"\n     -> {t['next_action']}"
+            lines.append(line)
 
     return "\n".join(lines).strip()
 
@@ -351,10 +353,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --- !tasks [area] ---
     if msg.lower().startswith("!tasks"):
         area = msg[6:].strip() or None
-        tasks = await asyncio.to_thread(db.get_tasks, area)
-        label = f" ({area})" if area else ""
-        reply = f"Active tasks{label}:\n\n{_format_tasks(tasks)}"
-        await update.message.reply_text(reply)
+
+        if not area:
+            # No filter: show area summary with counts
+            areas = await asyncio.to_thread(db.get_areas)
+            if not areas:
+                await update.message.reply_text("No active tasks.")
+                return
+            total = sum(count for _, count in areas)
+            lines = [f"Active tasks ({total} total):\n"]
+            for a, count in areas:
+                lines.append(f"  {a}: {count}")
+            lines.append("\nUse !tasks [area] to see details.")
+            lines.append("Use !brief for urgent tasks.")
+            await update.message.reply_text("\n".join(lines))
+        else:
+            tasks = await asyncio.to_thread(db.get_tasks, area)
+            reply = f"Tasks ({area}):\n\n{_format_tasks(tasks)}"
+            await update.message.reply_text(reply)
 
     # --- !add [!!] [[area]] title ---
     elif msg.lower().startswith("!add"):

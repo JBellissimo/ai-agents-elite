@@ -53,9 +53,28 @@ def get_tasks(area: str = None, status: str = "active") -> list[dict]:
     return result.data
 
 
-def get_brief() -> list[dict]:
+def get_areas() -> list[dict]:
     """
-    Returns all urgent active tasks across all areas.
+    Returns task counts grouped by area.
+    Used by !tasks (no filter) to show a summary instead of all tasks.
+    """
+    result = (
+        _client()
+        .table("tasks")
+        .select("area")
+        .eq("status", "active")
+        .execute()
+    )
+    counts: dict[str, int] = {}
+    for row in result.data:
+        area = row.get("area") or "General"
+        counts[area] = counts.get(area, 0) + 1
+    return sorted(counts.items())
+
+
+def get_brief(limit: int = 10) -> list[dict]:
+    """
+    Returns top urgent active tasks, capped at limit.
     Used by !brief command.
     """
     result = (
@@ -65,6 +84,7 @@ def get_brief() -> list[dict]:
         .eq("status", "active")
         .eq("priority", "urgent")
         .order("created_at")
+        .limit(limit)
         .execute()
     )
     return result.data
