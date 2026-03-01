@@ -43,6 +43,7 @@ from telegram.ext import (
 )
 import db
 import brief_agent
+import meeting_prep_agent
 
 load_dotenv()
 
@@ -181,6 +182,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# MEETING PREP — PENDING CONTEXT STATE
+#
+# When !meetingprep [name] is received, the bot asks for email/LinkedIn context.
+# We store the person's name here keyed by chat_id and wait for the next message.
+# The next message (or "skip") is consumed as context, then the agent runs.
+#
+# In-memory only — clears on restart. Intentional: the user just re-runs the command.
+# ---------------------------------------------------------------------------
+_MEETING_PREP_PENDING: dict[int, str] = {}  # chat_id -> person name
+
 
 # ---------------------------------------------------------------------------
 # SECURITY
@@ -280,6 +292,8 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /brief          -- AI daily brief (on demand)\n"
         "  !brief          -- AI daily brief (on demand)\n"
         "  [auto at 5am EST daily]\n\n"
+        "Meeting Prep (live):\n"
+        "  !meetingprep [Name]  -- research + brief + script\n\n"
         "C-Suite (coming):\n"
         "  /ceo  /coo  /cmo  /cgo"
     )
@@ -377,8 +391,29 @@ def _parse_add(text: str) -> tuple[str, str | None, str]:
 
 
 # ---------------------------------------------------------------------------
+# HELPERS
+# ---------------------------------------------------------------------------
+
+async def _send_chunked(update: Update, text: str, chunk_size: int = 4000):
+    """
+    Sends long text in chunks to stay under Telegram's 4096-char limit.
+    Splits on newlines where possible to avoid cutting mid-sentence.
+    """
+    while text:
+        if len(text) <= chunk_size:
+            await update.message.reply_text(text)
+            break
+        # Find last newline within chunk_size to avoid cutting mid-line
+        split_at = text.rfind("\n", 0, chunk_size)
+        if split_at == -1:
+            split_at = chunk_size
+        await update.message.reply_text(text[:split_at])
+        text = text[split_at:].lstrip("\n")
+
+
+# ---------------------------------------------------------------------------
 # CATCH-ALL MESSAGE HANDLER
-# Routes !tasks, !add, !done, !brief to Supabase.
+# Routes !tasks, !add, !done, !brief, !meetingprep to their handlers.
 # Freeform text acknowledged (Phase 2: route to Chief of Staff agent).
 # ---------------------------------------------------------------------------
 
@@ -387,7 +422,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     msg = update.message.text.strip()
+    chat_id = update.effective_chat.id
     logger.info(f"Message received: {msg}")
+
+    # --- Meeting prep context capture (must be checked before all other routing) ---
+    # If we're waiting for email/LinkedIn context after a !meetingprep command,
+    # consume this message as context (or "skip") and run the agent.
+    if chat_id in _MEETING_PREP_PENDING:
+        name = _MEETING_PREP_PENDING.pop(chat_id)
+        user_context = "" if msg.lower().strip() == "skip" else msg
+        context_note = " (no context)" if not user_context else " (context included)"
+        await update.message.reply_text(
+            f"Researching {name}{context_note}...\nThis takes about 20 seconds."
+        )
+        try:
+            brief_text, file_path = await asyncio.to_thread(
+                meeting_prep_agent.run_meeting_prep, name, user_context
+            )
+            await _send_chunked(update, brief_text)
+            await update.message.reply_text(f"Saved: {file_path.name}")
+            logger.info(f"Meeting prep generated for {name}, saved to {file_path}")
+        except Exception as e:
+            logger.error(f"Meeting prep failed for {name}: {e}")
+            await update.message.reply_text(f"Meeting prep failed: {e}")
+        return
 
     # --- !tasks [area] ---
     if msg.lower().startswith("!tasks"):
@@ -454,6 +512,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tasks = await asyncio.to_thread(db.get_tasks)
         brief_text = await asyncio.to_thread(brief_agent.generate_brief, tasks)
         await update.message.reply_text(brief_text)
+
+    # --- !meetingprep [name] ---
+    elif msg.lower().startswith("!meetingprep"):
+        name = msg[len("!meetingprep"):].strip()
+        if not name:
+            await update.message.reply_text(
+                "Usage: !meetingprep [Full Name]\n"
+                "Example: !meetingprep Bryan Gelnett"
+            )
+            return
+        _MEETING_PREP_PENDING[chat_id] = name
+        await update.message.reply_text(
+            f"Got it: {name}\n\n"
+            "Paste any email or LinkedIn context to include (thread, their message, notes), "
+            "or reply 'skip' to run without it:"
+        )
 
     # --- freeform (Phase 2: Chief of Staff) ---
     else:

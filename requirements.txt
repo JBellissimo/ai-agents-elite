@@ -5,6 +5,7 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-dotenv>=1.0.0
 discord.py>=2.4.0
+duckduckgo-search>=6.0.0
 
 # Phase 0: Telegram bot (replaces Discord in Phase 1)
 python-telegram-bot>=20.0
