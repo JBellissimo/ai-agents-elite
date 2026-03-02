@@ -1,7 +1,17 @@
+# =============================================================================
+# PARKED — Do not work on this until Bellissimo ARR reaches $5K/month.
+#
+# BLOCKER: Apollo.io API calls return Cloudflare 403 errors from VPS IPs.
+# Needs a residential proxy (e.g. Bright Data) or a different approach.
+# The code works locally but cannot run on VPS without a proxy solution.
+# discord_bot.py (the caller) has been deprecated and removed.
+#
+# Re-evaluate when: Bellissimo ARR > $5K/mo AND Apollo is still the right tool.
+# =============================================================================
+
 """
 apollo_tools.py — Apollo.io API integration for prospect targeting
 
-Used by discord_bot.py for the !prospect command.
 Requires APOLLO_API_KEY in .env (get from Josh: apollo.io > Settings > Integrations > API)
 
 Apollo docs: https://apolloio.github.io/apollo-api-docs/

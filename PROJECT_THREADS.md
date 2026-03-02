@@ -53,7 +53,7 @@
 ## THREAD 3 — The Bellissimo Reveal (Core Product)
 **Status:** AGENT RUNNING / DISCORD BOT ON VPS (ALWAYS-ON)
 **Priority:** HIGH — this is the revenue starter
-**Key Files:** [agent.py](agent.py), [tools.py](tools.py), [discord_bot.py](discord_bot.py), [agent_server.py](agent_server.py)
+**Key Files:** [agent.py](agent.py), [tools.py](tools.py)
 
 **What's done:**
 - agent.py updated to run in "reveal" mode (Bellissimo) or "xray" mode (SustainCFO)
@@ -115,20 +115,15 @@
 ---
 
 ## THREAD 5 — Guerrilla Marketing
-**Status:** CONCEPT DEFINED / EXECUTION NOT STARTED
-**Priority:** MEDIUM
-**Key File:** [map_generator.py](map_generator.py)
+**Status:** PARKED — not a priority until Bellissimo has paying clients
+**Priority:** LOW
 
-**What's done:**
-- City map concept defined (dark satellite + cyan building footprints)
-- map_generator.py script written (generates map from OpenStreetMap data)
-- Bellissimo watermark approach defined
+**Concept:** City map mailers (dark satellite + building footprints) with Bellissimo watermark.
+Scripts removed. Re-evaluate when direct outreach channels are producing revenue.
 
-**Next action:**
-- [ ] Install required Python packages: geopandas, matplotlib, osmnx
-- [ ] Run map_generator.py for Huntington, WV + Bradenton, FL
-- [ ] Add Bellissimo AI Labs watermark in Canva/Figma
-- [ ] Design mailer/postcard template: map + "We see your city. We'd like to see your business."
+**Next action (when unparked):**
+- [ ] Rebuild map generator (was removed — concept only, never executed)
+- [ ] Design mailer/postcard template
 - [ ] Identify first 50 target businesses in Huntington
 
 ---

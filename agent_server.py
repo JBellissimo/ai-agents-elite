@@ -1,3 +1,13 @@
+# =============================================================================
+# PARKED — Do not work on this until Bellissimo ARR reaches $5K/month.
+#
+# This FastAPI server is the backend for a web intake form that doesn't exist yet.
+# It is speculative infrastructure — there is no client-facing form to connect to.
+# Building or maintaining this now is waste; the constraint is revenue, not plumbing.
+#
+# Re-evaluate when: Bellissimo ARR > $5K/mo AND the Reveal intake form is being built.
+# =============================================================================
+
 """
 agent_server.py — Bellissimo Agent Server
 ==========================================

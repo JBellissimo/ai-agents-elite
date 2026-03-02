@@ -1,148 +1,88 @@
-# Bellissimo Discord OS — User Guide
+# Bellissimo OS — User Guide
+# Interface: Telegram (@BellissimoLabs_bot)
+# Last updated: 2026-03-01
 
 ## What This Is
 
-Your Discord server is a 24/7 AI command center running on a Hetzner VPS in Virginia.
-It does not need your laptop. It does not go offline. It responds from your phone.
+Bellissimo OS is a 24/7 AI command center running on a Hetzner VPS.
+It does not need your laptop. It does not go offline. It responds from your iPhone.
 
-Three modes of interaction:
-- **Commands** (`!` prefix) — trigger specific agents from any channel
-- **Conversation** — talk to agents in designated channels, no `!` needed
-- **Automatic** — bot proactively posts without you doing anything
+Interface: **Telegram** (@BellissimoLabs_bot). All commands go here.
+Deploy: **deploy.ps1** from VS Code. One command pushes code + restarts the VPS bot.
 
 ---
 
 ## Daily Cadence
 
-### Automatic (no action required)
-| Time | What happens | Where |
-|------|-------------|-------|
-| **8:00 AM ET** | Daily brief posts automatically | `#chief-of-staff` |
+### Automatic
+| Time | What happens |
+|------|-------------|
+| **5:00 AM ET** | AI daily brief sent to Telegram automatically |
 
-The daily brief includes: #1 priority for today, top blocker across all threads,
-one action you can take in < 15 min, one sharp question to sharpen your thinking.
+The brief applies Theory of Constraints to your task list + STRATEGIC_NORTH_STAR.md.
+Output: TOP 3 TODAY, TIME-SENSITIVE, DEFER, and the single CONSTRAINT.
 
 ### On-Demand Habits
 | When | Command | What you get |
 |------|---------|-------------|
-| Before any meeting | `!prep <name>` | Sharp brief with talking points + questions |
-| Inbound lead or deal | `!eval <description>` | Score, verdict, next move |
-| Monday morning | `!nudge` + `!threads` | Brief + project status board |
-| Running a prospect | `!scope <company>` | Full business intelligence report |
-| Financial diagnosis | `!xray <company>` | CFO-grade financial diagnostic |
+| Before any meeting | `!meetingprep [Name]` | Background + opportunity + conversation script |
+| Morning check-in | `!brief` | On-demand AI brief |
+| Capture a thought | `!add [task]` | Task saved instantly |
+| Inbound opportunity | `!add !! [Bellissimo] [description]` | Urgent, tagged |
 
 ---
 
 ## All Commands
 
-### Agent Commands (work in any channel)
+### System
+| Command | What it does |
+|---------|-------------|
+| `/start` | Confirm VPS is alive |
+| `/status` | System health check |
+| `/help` | Full command list |
+| `/brief` | AI daily brief |
 
-| Command | What it does | Speed |
-|---------|-------------|-------|
-| `!scope <company>` | Full Bellissimo Scope diagnostic | ~45 sec |
-| `!xray <company>` | SustainCFO financial deep-dive | ~45 sec |
-| `!prep <name>` | Meeting prep — pulls Obsidian notes if on laptop | ~5 sec |
-| `!prep <name> \| <notes>` | Meeting prep with pasted context (texts, updates) | ~5 sec |
-| `!eval <deal text>` | Score + verdict on any opportunity | ~10 sec |
-| `!threads` | All 8 project thread statuses | instant |
-| `!nudge` | Trigger daily brief on demand | ~3 sec |
-| `!status` | Bot uptime + session run counts | instant |
-| `!help` | Command list in Discord | instant |
+### Tasks
+| Command | What it does |
+|---------|-------------|
+| `!tasks` | Area summary (counts by area) |
+| `!tasks [area]` | Full list for that area |
+| `!add [task]` | Add normal task |
+| `!add !! [task]` | Add urgent task |
+| `!add [Area] [task]` | Add task with area tag |
+| `!done [partial title]` | Mark done by fuzzy match |
+| `!brief` | AI-generated daily brief |
 
-### !prep Context Examples
-```
-# Basic (uses Obsidian if on laptop, LLM knowledge only on VPS)
-!prep Mat Sposta
+### Meeting Prep
+| Command | What it does |
+|---------|-------------|
+| `!meetingprep [Full Name]` | Research + brief + conversation script (~20 sec) |
 
-# With inline context — paste texts, notes, or updates after the |
-!prep Mat Sposta | Recent texts: wants to intro me to someone at Goldin. Interested in fractional COO for CHCK.AI. Meeting is about partnership, not consulting pitch.
-
-# Works for any name or company
-!prep Huntington Family Dental | Referred by Dr. Cohen. They have 3 locations. Staff of 40. No current CFO.
-```
-
-### !eval Examples
-```
-# Paste any deal description — email, bullet points, whatever you have
-!eval Commission deal — 15% on a $50K contract, close by end of March, warm referral from Josh
-
-!eval Mat Sposta wants me to do fractional COO for CHCK.AI. Early stage, ~$200K revenue, 2 employees. No equity discussed yet, retainer model.
-
-!eval Inbound from law firm in Huntington — 8 attorneys, $2M revenue, no in-house CFO, saw me on LinkedIn
-```
+**Flow:** Send command → bot asks for context → paste email/LinkedIn or reply `skip` → brief arrives.
 
 ---
 
-## Conversational Channels
+## Deploy Workflow
 
-### #chief-of-staff
-Just type. No `!` needed. The agent knows your 8 project threads, both businesses, and how to route tasks.
-
-```
-What's blocking Thread 3?
-I have a call with Mat Sposta in an hour — what should I focus on?
-What should I work on this afternoon?
-I'm thinking about doing a newsletter for Huntington business owners. Thoughts?
+One command from VS Code terminal:
+```powershell
+powershell -File deploy.ps1
 ```
 
-### #ideas-inbox
-Paste raw Apple Notes, voice transcription dumps, or half-baked ideas. Returns a structured project brief every time.
-
-```
-[paste any messy Apple Notes text]
-[paste voice-to-text transcription]
-Had an idea while driving: what if I...
-```
+Automatically: git push → VPS git pull → pip install → restart orchestrator.
 
 ---
 
-## Updating the Bot (When Code Changes)
+## VS Code Shortcuts
 
-When you build something new with Claude Code:
-
-**Step 1 — Push from VS Code**
-```
-git push
-```
-(or use VS Code Source Control sidebar → Sync)
-
-**Step 2 — Update the VPS**
-Open a terminal and SSH in:
-```bash
-ssh root@5.161.215.26
-cd /opt/bellissimo && git pull
-screen -r bellissimo
-```
-Then: **Ctrl+C** → `python3 /opt/venv/bin/python3 discord_bot.py` → **Ctrl+A then D**
-
----
-
-## Keyboard Shortcuts
-
-### VS Code
 | Action | Shortcut |
 |--------|---------|
 | Open/close terminal | Ctrl+` |
 | New terminal tab | Ctrl+Shift+` |
 | Quick open file | Ctrl+P → type filename |
 | Command palette | Ctrl+Shift+P |
-| Split editor | Ctrl+\ |
-| Stop running process | Ctrl+C (in terminal) |
+| Stop process | Ctrl+C (in terminal) |
 | Clear terminal | Ctrl+L |
-
-### Discord (Desktop)
-| Action | Shortcut |
-|--------|---------|
-| Jump to any channel | Ctrl+K |
-| Mark all as read | Escape |
-| Edit last message | Up arrow |
-| React to message | Hover → click emoji |
-| View keyboard shortcuts | Ctrl+/ |
-
-### Discord (Mobile)
-- Swipe right to open server list
-- Long-press any message to react/copy
-- @ mention + channel name to jump
 
 ---
 
@@ -156,7 +96,15 @@ Then: **Ctrl+C** → `python3 /opt/venv/bin/python3 discord_bot.py` → **Ctrl+A
 | Python env | `/opt/venv/bin/python3` |
 | Screen session | `screen -r bellissimo` |
 | Detach (keep running) | Ctrl+A then D |
-| View logs | `screen -r bellissimo` (scroll up) |
+
+Manual restart if needed:
+```bash
+ssh root@5.161.215.26
+screen -r bellissimo   # attach
+# Ctrl+C to stop
+/opt/venv/bin/python3 /opt/bellissimo/orchestrator.py
+# Ctrl+A then D to detach
+```
 
 ---
 
@@ -165,17 +113,17 @@ Then: **Ctrl+C** → `python3 /opt/venv/bin/python3 discord_bot.py` → **Ctrl+A
 | Problem | Fix |
 |---------|-----|
 | Bot not responding | SSH in → `screen -r bellissimo` — is it running? |
-| Double replies | Two instances running — kill local Python process |
-| `!prep` returns no Obsidian notes | Either: (a) run bot locally, or (b) use `!prep name \| notes` format |
-| Bot went offline | `screen -r bellissimo` → restart with python3 command |
-| Code changes not live | Did you `git push` and then `git pull` on VPS? |
+| Two replies per message | Two instances running — Ctrl+C local process |
+| Bot went offline (VPS reboot) | SSH in → manually restart screen session |
+| deploy.ps1 fails | Check for uncommitted local changes first |
+| `!meetingprep` search fails | DuckDuckGo rate limit — wait 60 sec and retry |
 
 ---
 
-## What's Coming (Future Builds)
+## What's Coming
 
-- `!add-thread` — add new project thread from Discord
-- Daily brief pulls from Google Calendar
-- `!scope` sends output to `#scope-runs` channel automatically
-- Apple Shortcuts → auto-post to `#ideas-inbox` on iPhone
-- Multi-turn memory in `#chief-of-staff`
+- `!meetingprep` auto-pull Gmail context
+- `/ceo` `/coo` `/cmo` `/cgo` via Telegram
+- Todoist task sync
+- Google Calendar → auto-trigger `!meetingprep`
+- Systemd service on VPS (auto-restart after reboots)
